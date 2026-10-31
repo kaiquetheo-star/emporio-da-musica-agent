@@ -26,3 +26,6 @@ htmlcov/
 Thumbs.db
 .idea/
 .vscode/
+
+# Session transcripts (generated at runtime)
+conversations/
