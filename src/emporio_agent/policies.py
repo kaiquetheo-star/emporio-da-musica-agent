@@ -21,7 +21,8 @@ import re
 import unicodedata
 from dataclasses import dataclass
 
-from pypdf import PdfReader
+import pdfplumber
+from nltk.stem.snowball import SnowballStemmer
 from rank_bm25 import BM25Okapi
 
 from .config import POLICIES_PDF
@@ -117,22 +118,48 @@ def _split_long(section: str, page: int, body: str) -> list[PolicyChunk]:
     return chunks
 
 
+def _merge_fragments(
+    sections: list[tuple[str, int, str]],
+) -> list[tuple[str, int, str]]:
+    """Attach numbered-list lines misdetected as sections back to their parent.
+
+    Headings and list items share the "N. text" shape; a real section has
+    substantial content, so anything with a tiny body is folded into the
+    previous section instead of becoming its own chunk.
+    """
+    merged: list[tuple[str, int, str]] = []
+    for title, page, body in sections:
+        if merged and len(body.strip()) < 80:
+            prev_title, prev_page, prev_body = merged[-1]
+            merged[-1] = (
+                prev_title,
+                prev_page,
+                f"{prev_body}\n{title} {body}".strip(),
+            )
+        else:
+            merged.append((title, page, body))
+    return merged
+
+
 class PolicyIndex:
     """BM25 index over the chunked store policies PDF."""
 
     def __init__(self, pdf_path=POLICIES_PDF) -> None:
-        reader = PdfReader(str(pdf_path))
-        pages = [page.extract_text() or "" for page in reader.pages]
+        self._stemmer = SnowballStemmer("portuguese")
+        with pdfplumber.open(str(pdf_path)) as pdf:
+            pages = [page.extract_text() or "" for page in pdf.pages]
         self.chunks: list[PolicyChunk] = []
-        for title, page, body in _extract_sections(pages):
+        for title, page, body in _merge_fragments(_extract_sections(pages)):
             self.chunks.extend(_split_long(title, page, body))
         corpus = [self._tokenize(c.text) for c in self.chunks]
         self._bm25 = BM25Okapi(corpus)
 
-    @staticmethod
-    def _tokenize(text: str) -> list[str]:
+    def _tokenize(self, text: str) -> list[str]:
         normalized = _strip_accents(text.lower())
-        return re.findall(r"[a-z0-9]{2,}", normalized)
+        return [
+            self._stemmer.stem(tok)
+            for tok in re.findall(r"[a-z0-9]{2,}", normalized)
+        ]
 
     def search(self, query: str, k: int = 4) -> list[PolicyChunk]:
         """Return the k policy chunks most relevant to the query."""
