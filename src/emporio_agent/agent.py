@@ -147,7 +147,7 @@ class StoreAgent:
                     }
                 )
                 for call in assistant_msg.tool_calls:
-                    result = self._execute(call)
+                    result = self._execute(call, trace)
                     messages.append(
                         {
                             "role": "tool",
@@ -170,7 +170,7 @@ class StoreAgent:
             tool_calls=trace,
         )
 
-    def _execute(self, call) -> str:
+    def _execute(self, call, trace: list[ToolCallRecord]) -> str:
         try:
             arguments = json.loads(call.function.arguments or "{}")
         except json.JSONDecodeError:
@@ -178,12 +178,12 @@ class StoreAgent:
         result = execute_tool(
             call.function.name, arguments, self._conn, self._policies
         )
-        trace_preview = result if len(result) <= 220 else result[:220] + "…"
+        preview = result if len(result) <= 220 else result[:220] + "…"
         trace.append(
             ToolCallRecord(
                 tool=call.function.name,
                 arguments=arguments,
-                result_preview=trace_preview,
+                result_preview=preview,
                 ok="error" not in result[:60].lower(),
             )
         )

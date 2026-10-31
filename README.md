@@ -68,15 +68,15 @@ framework:
 ### LLM provider — OpenAI-compatible layer (provider-agnostic)
 
 The agent talks to **any OpenAI-compatible endpoint** via three env vars.
-Tested with **Google Gemini 2.5 Flash** (excellent Portuguese quality and
-tool calling, generous free tier) via Gemini's OpenAI-compatible endpoint;
-switching to OpenRouter, OpenAI, Anthropic or a local gateway (Ollama,
-LiteLLM) is a one-line `.env` change:
+Tested with **Google Gemini 2.5 Flash** and **NVIDIA Nemotron 3.5 Lightning**
+(free tier via OpenRouter — the model used for the recorded examples in
+`examples/`). Switching to OpenRouter, OpenAI, Anthropic or a local gateway
+(Ollama, LiteLLM) is a one-line `.env` change:
 
 ```env
-OPENAI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
-OPENAI_API_KEY=your-key
-LLM_MODEL=gemini-2.5-flash
+OPENAI_BASE_URL=https://openrouter.ai/api/v1
+OPENAI_API_KEY=sk-or-your-key
+LLM_MODEL=nvidia/nemotron-3.5-lightning:free
 ```
 
 ### Data handling — CSVs → in-memory SQLite (agentic SQL)
@@ -167,6 +167,7 @@ src/emporio_agent/
   agent.py                  # persona/system prompt + tool-calling loop
   session.py                # chat history + JSONL persistence
   cli.py                    # Typer/Rich interactive chat
+scripts/generate_examples.py  # replays the example scenarios and writes examples/*.md
 data/                       # store CSVs + policy manual PDF (given)
 examples/                   # 5 recorded interactions (see below)
 ```
